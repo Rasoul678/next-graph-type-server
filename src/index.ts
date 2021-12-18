@@ -1,18 +1,46 @@
+import "reflect-metadata";
+import http from "http";
+import express from "express";
+import {
+  ApolloServerPluginLandingPageGraphQLPlayground,
+  ApolloServerPluginDrainHttpServer,
+} from "apollo-server-core";
+import { ApolloServer } from "apollo-server-express";
+import { buildSchema } from "type-graphql";
 import { MikroORM } from "@mikro-orm/core";
-import { __prod__ } from "./constants";
-// import { Post } from "./entities/Post";
 import mikroConfig from "./mikro-orm.config";
+import { __prod__ } from "./constants";
+import { PostResolver } from "./resolvers";
 
 const main = async () => {
   const orm = await MikroORM.init(mikroConfig);
-
   await orm.getMigrator().up();
 
-//   const post = orm.em.create(Post, { title: "first post" });
-//   await orm.em.persistAndFlush(post);
+  const app = express();
+  const httpServer = http.createServer(app);
 
-//   const posts = await orm.em.find(Post, {});
-//   console.log(posts)
+  const apolloServer = new ApolloServer({
+    schema: await buildSchema({
+      resolvers: [PostResolver],
+      validate: false,
+    }),
+    context: () => ({ orm }),
+    plugins: [
+      ApolloServerPluginDrainHttpServer({ httpServer }),
+      ApolloServerPluginLandingPageGraphQLPlayground(),
+    ],
+  });
+
+  await apolloServer.start();
+  apolloServer.applyMiddleware({ app });
+
+  await new Promise<void>((resolve) =>
+    httpServer.listen({ port: 4000 }, resolve)
+  );
+
+  console.log(
+    `🚀 Server ready at http://localhost:4000${apolloServer.graphqlPath}`
+  );
 };
 
 main().catch((err) => {
