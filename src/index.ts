@@ -4,6 +4,7 @@ import Redis from "ioredis";
 import express from "express";
 import session from "express-session";
 import connectRedis from "connect-redis";
+import cors from "cors";
 import {
   ApolloServerPluginLandingPageGraphQLPlayground,
   ApolloServerPluginDrainHttpServer,
@@ -23,6 +24,8 @@ const main = async () => {
   const redisClient = new Redis();
 
   const app = express();
+
+  app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 
   app.use(
     session({
@@ -55,7 +58,7 @@ const main = async () => {
   });
 
   await apolloServer.start();
-  apolloServer.applyMiddleware({ app });
+  apolloServer.applyMiddleware({ app, cors: false });
 
   await new Promise<void>((resolve) =>
     httpServer.listen({ port: 4000 }, resolve)
