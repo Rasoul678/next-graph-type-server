@@ -5,6 +5,7 @@ import {
   InputType,
   Mutation,
   ObjectType,
+  Query,
   Resolver,
 } from "type-graphql";
 import { User } from "../entities";
@@ -40,11 +41,22 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+  @Query(() => User, { nullable: true })
+  async me(@Ctx() { req, orm }: MyContext) {
+    //! You are not logged in
+    if (!req.session.userId) {
+      return null;
+    }
+
+    const user = await orm.em.findOne(User, { id: req.session.userId });
+    return user;
+  }
+
   //! Register a user.
   @Mutation(() => UserResponse)
   async register(
     @Arg("input", () => UsernamePasswordInput) input: UsernamePasswordInput,
-    @Ctx() { orm }: MyContext
+    @Ctx() { orm, req }: MyContext
   ): Promise<UserResponse> {
     const { password, username } = input;
 
@@ -90,6 +102,11 @@ export class UserResolver {
       }
     }
 
+    //! Store user id session
+    //! This will set a cookie on the user
+    //! Keep them logged in
+    req.session.userId = user.id;
+
     return { user };
   }
 
@@ -97,7 +114,7 @@ export class UserResolver {
   @Mutation(() => UserResponse)
   async login(
     @Arg("input", () => UsernamePasswordInput) input: UsernamePasswordInput,
-    @Ctx() { orm }: MyContext
+    @Ctx() { orm, req }: MyContext
   ): Promise<UserResponse> {
     const { password, username } = input;
     const persistedUser = await orm.em.findOne(User, { username });
@@ -125,6 +142,8 @@ export class UserResolver {
         ],
       };
     }
+
+    req.session.userId = persistedUser.id;
 
     return { user: persistedUser };
   }
