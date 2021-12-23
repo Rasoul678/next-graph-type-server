@@ -11,6 +11,7 @@ import {
 import { User } from "../entities";
 import { MyContext } from "src/types";
 import argon2 from "argon2";
+import { COOKIE_NAME } from "../constants";
 
 @InputType()
 class UsernamePasswordInput {
@@ -123,7 +124,11 @@ export class UserResolver {
       return {
         errors: [
           {
-            field: "input",
+            field: "username",
+            message: "Credentials doesn't match!",
+          },
+          {
+            field: "password",
             message: "Credentials doesn't match!",
           },
         ],
@@ -136,7 +141,11 @@ export class UserResolver {
       return {
         errors: [
           {
-            field: "input",
+            field: "username",
+            message: "Credentials doesn't match!",
+          },
+          {
+            field: "password",
             message: "Credentials doesn't match!",
           },
         ],
@@ -146,5 +155,21 @@ export class UserResolver {
     req.session.userId = persistedUser.id;
 
     return { user: persistedUser };
+  }
+
+  @Mutation(() => Boolean)
+  logout(@Ctx() { req, res }: MyContext) {
+    return new Promise((resolve) => {
+      res.clearCookie(COOKIE_NAME);
+      req.session.destroy((error) => {
+        if (error) {
+          console.log(error);
+          resolve(false);
+          return;
+        }
+
+        resolve(true);
+      });
+    });
   }
 }
