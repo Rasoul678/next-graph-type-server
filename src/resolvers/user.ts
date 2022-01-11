@@ -40,7 +40,7 @@ export class UserResolver {
   async changePassword(
     @Arg("token") token: string,
     @Arg("newPassword") newPassword: string,
-    @Ctx() { orm, redis, req }: MyContext
+    @Ctx() { redis, req }: MyContext
   ): Promise<UserResponse> {
     //! In case if password length is not long enough
     if (newPassword.length <= 3) {
@@ -71,7 +71,7 @@ export class UserResolver {
     }
 
     //! Get user from db
-    const user = await orm.em.findOne(User, { id: parseInt(userId) });
+    const user = await User.findOne(userId);
 
     if (!user) {
       return {
@@ -87,10 +87,8 @@ export class UserResolver {
     //! Hash the new password
     const hashedPassword = await argon2.hash(newPassword);
 
-    user.password = hashedPassword;
-
     //! Save user with the new password in db
-    await orm.em.persistAndFlush(user);
+    await User.update(userId, { password: hashedPassword });
 
     //! Delete token from redis
     await redis.del(key);
@@ -104,9 +102,9 @@ export class UserResolver {
   @Mutation(() => Boolean)
   async forgotPassword(
     @Arg("email") email: string,
-    @Ctx() { orm, redis }: MyContext
+    @Ctx() { redis }: MyContext
   ) {
-    const user = await orm.em.findOne(User, { email });
+    const user = await User.findOne({ where: { email } });
 
     if (!user) {
       return true;
@@ -132,21 +130,20 @@ export class UserResolver {
   }
 
   @Query(() => User, { nullable: true })
-  async me(@Ctx() { req, orm }: MyContext) {
+  me(@Ctx() { req }: MyContext) {
     //! You are not logged in
     if (!req.session.userId) {
       return null;
     }
 
-    const user = await orm.em.findOne(User, { id: req.session.userId });
-    return user;
+    return User.findOne(req.session.userId);
   }
 
   //! Register a user.
   @Mutation(() => UserResponse)
   async register(
     @Arg("input", () => UsernamePasswordInput) input: UsernamePasswordInput,
-    @Ctx() { orm, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
     const { password, username, email } = input;
 
@@ -158,13 +155,13 @@ export class UserResolver {
 
     const hashedPassword = await argon2.hash(password);
 
-    const user = orm.em.create(User, {
+    const user = User.create({
       username,
       password: hashedPassword,
       email,
     });
     try {
-      await orm.em.persistAndFlush(user);
+      await user.save();
     } catch (error) {
       //! Duplicate username error.
       //! || error.detail.includes("already exists")
@@ -193,14 +190,13 @@ export class UserResolver {
   async login(
     @Arg("usernameOrEmail") usernameOrEmail: string,
     @Arg("password") password: string,
-    @Ctx() { orm, req }: MyContext
+    @Ctx() { req }: MyContext
   ): Promise<UserResponse> {
-    const persistedUser = await orm.em.findOne(
-      User,
-      usernameOrEmail.includes("@")
+    const persistedUser = await User.findOne({
+      where: usernameOrEmail.includes("@")
         ? { email: usernameOrEmail }
-        : { username: usernameOrEmail }
-    );
+        : { username: usernameOrEmail },
+    });
 
     if (!persistedUser) {
       return {

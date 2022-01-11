@@ -11,17 +11,23 @@ import {
 } from "apollo-server-core";
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
-import { MikroORM } from "@mikro-orm/core";
-import mikroConfig from "./mikro-orm.config";
 import { COOKIE_NAME, __prod__ } from "./constants";
 import { PostResolver, UserResolver } from "./resolvers";
 import { MyContext } from "./types";
+import { createConnection } from "typeorm";
+import { Post, User } from "./entities";
 
 const main = async () => {
-  //! Initialize mikro-orm and connect to db.
-  const orm = await MikroORM.init(mikroConfig);
-  //! Run the migration before anything else.
-  await orm.getMigrator().up();
+  //! Initialize type-orm and connect to db.
+  await createConnection({
+    type: "postgres",
+    database: "next-graphql",
+    username: "postgres",
+    password: "rasoul678",
+    logging: true,
+    synchronize: true,
+    entities: [User, Post],
+  });
 
   //! Setup Redis session store.
   const RedisStore = connectRedis(session);
@@ -56,7 +62,6 @@ const main = async () => {
       validate: false,
     }),
     context: ({ req, res }): MyContext => ({
-      orm,
       req,
       res,
       redis: redisClient,
