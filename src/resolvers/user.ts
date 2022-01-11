@@ -2,7 +2,6 @@ import {
   Arg,
   Ctx,
   Field,
-  InputType,
   Mutation,
   ObjectType,
   Query,
@@ -11,16 +10,11 @@ import {
 import { User } from "../entities";
 import { MyContext } from "src/types";
 import argon2 from "argon2";
-import { COOKIE_NAME } from "../constants";
-
-@InputType()
-class UsernamePasswordInput {
-  @Field()
-  username: string;
-
-  @Field()
-  password: string;
-}
+import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from "../constants";
+import { UsernamePasswordInput } from "./UsernamePasswordInput";
+import { validateRegister } from "../utils/validateRegister";
+import { sendEmail } from "../utils/senEmail";
+import { v4 } from "uuid";
 
 @ObjectType()
 class FieldError {
@@ -42,6 +36,101 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+  @Mutation(() => UserResponse)
+  async changePassword(
+    @Arg("token") token: string,
+    @Arg("newPassword") newPassword: string,
+    @Ctx() { orm, redis, req }: MyContext
+  ): Promise<UserResponse> {
+    //! In case if password length is not long enough
+    if (newPassword.length <= 3) {
+      return {
+        errors: [
+          {
+            field: "newPassword",
+            message: "Password length must be greater than 3",
+          },
+        ],
+      };
+    }
+
+    const key = FORGET_PASSWORD_PREFIX + token;
+
+    //! Extract user id from token
+    const userId = await redis.get(key);
+
+    if (!userId) {
+      return {
+        errors: [
+          {
+            field: "token",
+            message: "token expired",
+          },
+        ],
+      };
+    }
+
+    //! Get user from db
+    const user = await orm.em.findOne(User, { id: parseInt(userId) });
+
+    if (!user) {
+      return {
+        errors: [
+          {
+            field: "token",
+            message: "user no longer exists",
+          },
+        ],
+      };
+    }
+
+    //! Hash the new password
+    const hashedPassword = await argon2.hash(newPassword);
+
+    user.password = hashedPassword;
+
+    //! Save user with the new password in db
+    await orm.em.persistAndFlush(user);
+
+    //! Delete token from redis
+    await redis.del(key);
+
+    //! Login user after change password
+    req.session.userId = user.id;
+
+    return { user };
+  }
+
+  @Mutation(() => Boolean)
+  async forgotPassword(
+    @Arg("email") email: string,
+    @Ctx() { orm, redis }: MyContext
+  ) {
+    const user = await orm.em.findOne(User, { email });
+
+    if (!user) {
+      return true;
+    }
+
+    const token = v4();
+
+    await redis.set(
+      FORGET_PASSWORD_PREFIX + token,
+      user.id,
+      "ex",
+      1000 * 60 * 10
+    ); //! 10 minutes
+
+    await sendEmail(
+      email,
+      `
+      <a href="http://localhost:3000/change-password/${token}">reset password</a>
+    `
+    );
+
+    return true;
+  }
+
   @Query(() => User, { nullable: true })
   async me(@Ctx() { req, orm }: MyContext) {
     //! You are not logged in
@@ -59,33 +148,21 @@ export class UserResolver {
     @Arg("input", () => UsernamePasswordInput) input: UsernamePasswordInput,
     @Ctx() { orm, req }: MyContext
   ): Promise<UserResponse> {
-    const { password, username } = input;
+    const { password, username, email } = input;
 
-    if (username.length <= 2) {
-      return {
-        errors: [
-          {
-            field: "username",
-            message: "Username length must be greater than 2",
-          },
-        ],
-      };
-    }
+    const errors = validateRegister(input);
 
-    if (password.length <= 3) {
-      return {
-        errors: [
-          {
-            field: "password",
-            message: "Password length must be greater than 3",
-          },
-        ],
-      };
+    if (errors) {
+      return { errors };
     }
 
     const hashedPassword = await argon2.hash(password);
 
-    const user = orm.em.create(User, { username, password: hashedPassword });
+    const user = orm.em.create(User, {
+      username,
+      password: hashedPassword,
+      email,
+    });
     try {
       await orm.em.persistAndFlush(user);
     } catch (error) {
@@ -114,17 +191,22 @@ export class UserResolver {
   //! Login a user.
   @Mutation(() => UserResponse)
   async login(
-    @Arg("input", () => UsernamePasswordInput) input: UsernamePasswordInput,
+    @Arg("usernameOrEmail") usernameOrEmail: string,
+    @Arg("password") password: string,
     @Ctx() { orm, req }: MyContext
   ): Promise<UserResponse> {
-    const { password, username } = input;
-    const persistedUser = await orm.em.findOne(User, { username });
+    const persistedUser = await orm.em.findOne(
+      User,
+      usernameOrEmail.includes("@")
+        ? { email: usernameOrEmail }
+        : { username: usernameOrEmail }
+    );
 
     if (!persistedUser) {
       return {
         errors: [
           {
-            field: "username",
+            field: "usernameOrEmail",
             message: "Credentials doesn't match!",
           },
           {
@@ -141,7 +223,7 @@ export class UserResolver {
       return {
         errors: [
           {
-            field: "username",
+            field: "usernameOrEmail",
             message: "Credentials doesn't match!",
           },
           {

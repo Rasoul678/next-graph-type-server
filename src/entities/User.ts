@@ -20,6 +20,11 @@ export class User {
   @Property({ type: "text", unique: true }) //! Through this we can make it a table property.
   username!: string;
 
+  @Field()
+  @Property({ type: "text" })
+  email!: string;
+
+  //! Just as a database table
   @Property({ type: "text" })
   password!: string;
 }

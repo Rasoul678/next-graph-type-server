@@ -18,8 +18,12 @@ import { PostResolver, UserResolver } from "./resolvers";
 import { MyContext } from "./types";
 
 const main = async () => {
+  //! Initialize mikro-orm and connect to db.
   const orm = await MikroORM.init(mikroConfig);
+  //! Run the migration before anything else.
   await orm.getMigrator().up();
+
+  //! Setup Redis session store.
   const RedisStore = connectRedis(session);
   const redisClient = new Redis();
 
@@ -45,12 +49,18 @@ const main = async () => {
 
   const httpServer = http.createServer(app);
 
+  //! Add graphql server.
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
       resolvers: [PostResolver, UserResolver],
       validate: false,
     }),
-    context: ({ req, res }): MyContext => ({ orm, req, res }),
+    context: ({ req, res }): MyContext => ({
+      orm,
+      req,
+      res,
+      redis: redisClient,
+    }),
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
       ApolloServerPluginLandingPageGraphQLPlayground(),
@@ -58,6 +68,8 @@ const main = async () => {
   });
 
   await apolloServer.start();
+
+  //! Creates graphql endpoint on express.
   apolloServer.applyMiddleware({ app, cors: false });
 
   await new Promise<void>((resolve) =>

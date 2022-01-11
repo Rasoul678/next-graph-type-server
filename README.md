@@ -1,0 +1,109 @@
+# Fullstack Graphql & Typescript
+
+## Npm Installations
+
+- ### [@types/node](https://www.npmjs.com/package/@types/node)
+  - `yarn add -D @types/node`
+- ### [typescript](https://www.npmjs.com/package/typescript)
+  - `yarn add -D typescript`
+- ### [ts-node](https://www.npmjs.com/package/ts-node)
+  - `yarn add -D ts-node`
+- ### [nodemon](https://www.npmjs.com/package/nodemon)
+  - `yarn add -D nodemon`
+- ### [@mikro-orm/cli](https://www.npmjs.com/package/@mikro-orm/cli)
+  - `yarn add @mikro-orm/cli`
+- ### [@mikro-orm/core](https://www.npmjs.com/package/@mikro-orm/core)
+  - `yarn add @mikro-orm/core`
+- ### [@mikro-orm/migrations](https://www.npmjs.com/package/@mikro-orm/migrations)
+  - `yarn add @mikro-orm/migrations`
+- ### [@mikro-orm/postgresql](https://www.npmjs.com/package/@mikro-orm/postgresql)
+  - `yarn add @mikro-orm/postgresql`
+- ### [pg](https://www.npmjs.com/package/pg)
+  - `yarn add pg`
+- ### [@mikro-orm/postgresql](https://www.npmjs.com/package/@mikro-orm/postgresql)
+  - `yarn add @mikro-orm/postgresql`
+- ### [express](https://www.npmjs.com/package/express)
+  - `yarn add express`
+- ### [@types/express](https://www.npmjs.com/package/@types/express)
+  - `yarn add -D @types/express`
+- ### [apollo-server-express](https://www.npmjs.com/package/apollo-server-express)
+  - `yarn add apollo-server-express`
+- ### [graphql](https://www.npmjs.com/package/graphql)
+  - `yarn add graphql`
+- ### [type-graphql](https://www.npmjs.com/package/type-graphql)
+  - `yarn add type-graphql`
+- ### [reflect-metadata](https://www.npmjs.com/package/reflect-metadata)
+  - `yarn add reflect-metadata`
+- ### [argon2](https://www.npmjs.com/package/argon2)
+  - `yarn add argon2`
+- ### [express-session](https://www.npmjs.com/package/express-session)
+  - `yarn add express-session`
+- ### [@types/express-session](https://www.npmjs.com/package/@types/express-session)
+  - `yarn add -D @types/express-session`
+- ### [ioredis](https://www.npmjs.com/package/ioredis)
+  - `yarn add ioredis`
+- ### [@types/ioredis](https://www.npmjs.com/package/@types/ioredis)
+  - `yarn add -D @types/ioredis`
+- ### [connect-redis](https://www.npmjs.com/package/connect-redis)
+  - `yarn add connect-redis`
+- ### [@types/connect-redis](https://www.npmjs.com/package/@types/connect-redis)
+  - `yarn add -D @types/connect-redis`
+- ### [cors](https://www.npmjs.com/package/cors)
+  - `yarn add cors`
+- ### [@types/cors](https://www.npmjs.com/package/@types/cors)
+  - `yarn add -D @types/cors`
+- ### [nodemailer](https://www.npmjs.com/package/nodemailer)
+  - `yarn add nodemailer`
+- ### [@types/nodemailer](https://www.npmjs.com/package/@types/nodemailer)
+  - `yarn add -D @types/nodemailer`
+- ### [uuid](https://www.npmjs.com/package/uuid)
+  - `yarn add uuid`
+- ### [@types/uuid](https://www.npmjs.com/package/@types/uuid)
+  - `yarn add -D @types/uuid`
+
+## Steps
+
+- `npm init -y`
+- `npx tsconfig.json` created by ben
+- add scripts to `package.json` file
+  - "watch":"tsc -w"
+  - "dev": "nodemon --exec ts-node src/index.ts"
+  - "start": "ts-node src/index.ts"
+- `initialize mikro-orm`
+- `add entities`
+- add mikro-orm config to package.json
+- add migration script
+  - "create:migration": "mikro-orm migration:create"
+- `setup server`
+  - add `server` dependencies
+  - create `apollo server`
+  - add `resolvers`
+  - add `CRUD` for post
+- `authentication`
+  - add `User` entity
+  - add `argon2` for hashing password
+  - add `register` and `login` mutation
+  - setup `session` for authentication
+    - use `express-session`
+    - use `connect-redis`
+    - use `ioredis`
+    - use `redis` to store data (redis is `very fast` and on `every request` we are going to get user from redis and `check` if user is logged in)
+    - `install redis` on computer
+  - `session workflow`
+    - key: redis-key==> {userId: 1}
+    - express-session will set a cookie on the browser by `encrypting` the redis key
+    -  when user makes a request, the cookie will be sent to the server
+    - server `decrypts` the cookie
+    - make a request to the redis and get the value of the redis key
+    - and store the value on req.session = {userId: 1}
+- add `me` query
+- `CORS issue`
+  - by `default` apollo will add cors for us. this will apply on apollo endpoint only.
+  - add `cors middleware` for express globally
+  - turn apollo server cors to false
+  - set corse `origin` to `http://localhost:3000` and `credentials` to `true`
+- add `logout` mutation
+- add `nodemailer` and `forgot password`
+- add `email` to `user entity` for forgot password to work
+- put `register validation` in separate file
+- add `uuid` to create token for forget password email
