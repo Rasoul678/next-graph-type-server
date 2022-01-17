@@ -41,8 +41,8 @@ export class PostResolver {
   //! We amend this field to that and reveal to client.
   //! We could add this field to Post entity (as as class field) but it is not a good practice.
   @FieldResolver(() => String)
-  textSnippet(@Root() root: Post) {
-    return root.text.slice(0, 50);
+  textSnippet(@Root() post: Post) {
+    return post.text.slice(0, 50);
   }
 
   //! Get all posts.
