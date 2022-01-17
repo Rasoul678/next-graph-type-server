@@ -54,17 +54,34 @@ export class PostResolver {
     const realLimit = Math.min(50, limit);
     const realLimitPlusOne = realLimit + 1;
 
-    const qb = getConnection()
-      .getRepository(Post)
-      .createQueryBuilder("post")
-      .orderBy('"createdAt"', "DESC")
-      .take(realLimitPlusOne);
+    //! query parameters array
+    const replacement: any[] = [realLimitPlusOne];
 
     if (cursor) {
-      qb.where('"createdAt" < :cursor', { cursor: new Date(parseInt(cursor)) });
+      replacement.push(new Date(parseInt(cursor)));
     }
 
-    const posts = await qb.getMany();
+    //! create a join query
+    const posts = await getConnection().query(
+      //! make attention on json_build_object method
+      //! this will form this result as expected return type
+      `
+    SELECT p.*,
+    json_build_object(
+    'id', u.id,
+    'username', u.username,
+    'email', u.email,
+    'createdAt', u."createdAt",
+    'updatedAt', u."updatedAt"
+    ) creator
+    FROM post p
+    INNER JOIN public.user u on u.id = p."creatorId"
+    ${cursor ? ` WHERE  p."createdAt" < $2` : ""}
+    ORDER BY p."createdAt" DESC
+    LIMIT $1
+  `,
+      replacement
+    );
 
     return {
       posts: posts.slice(0, realLimit), //! slice the post array to return actual limit
