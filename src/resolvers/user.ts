@@ -34,7 +34,7 @@ class UserResponse {
   user?: User;
 }
 
-@Resolver()
+@Resolver(User)
 export class UserResolver {
   @Mutation(() => UserResponse)
   async changePassword(

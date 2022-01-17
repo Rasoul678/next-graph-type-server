@@ -16,6 +16,7 @@ import { PostResolver, UserResolver } from "./resolvers";
 import { MyContext } from "./types";
 import { createConnection } from "typeorm";
 import { Post, User } from "./entities";
+import path from "path";
 
 const main = async () => {
   //! Initialize type-orm and connect to db.
@@ -27,7 +28,10 @@ const main = async () => {
     logging: true,
     synchronize: true,
     entities: [User, Post],
+    migrations: [path.join(__dirname + "/migrations/*")],
   });
+
+  // await connection.runMigrations();
 
   //! Setup Redis session store.
   const RedisStore = connectRedis(session);
