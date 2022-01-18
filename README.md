@@ -107,3 +107,5 @@
 - add `email` to `user entity` for forgot password to work
 - put `register validation` in separate file
 - add `uuid` to create token for forget password email
+- add `pagination`
+- add `upVote` relationship(`many to many`) 

@@ -12,26 +12,26 @@ import {
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql";
 import { COOKIE_NAME, __prod__ } from "./constants";
-import { PostResolver, UserResolver } from "./resolvers";
+import { PostResolver, UpVoteResolver, UserResolver } from "./resolvers";
 import { MyContext } from "./types";
 import { createConnection } from "typeorm";
-import { Post, User } from "./entities";
+import { Post, UpVote, User } from "./entities";
 import path from "path";
 
 const main = async () => {
   //! Initialize type-orm and connect to db.
-  await createConnection({
+  const connection = await createConnection({
     type: "postgres",
     database: "next-graphql",
     username: "postgres",
     password: "rasoul678",
     logging: true,
     synchronize: true,
-    entities: [User, Post],
+    entities: [User, Post, UpVote],
     migrations: [path.join(__dirname + "/migrations/*")],
   });
 
-  // await connection.runMigrations();
+  await connection.runMigrations();
 
   //! Setup Redis session store.
   const RedisStore = connectRedis(session);
@@ -62,7 +62,7 @@ const main = async () => {
   //! Add graphql server.
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
-      resolvers: [PostResolver, UserResolver],
+      resolvers: [PostResolver, UserResolver, UpVoteResolver],
       validate: false,
     }),
     context: ({ req, res }): MyContext => ({
