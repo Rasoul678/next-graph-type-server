@@ -49,7 +49,8 @@ export class PostResolver {
   @Query(() => PaginatedPosts)
   async posts(
     @Arg("limit", () => Int) limit: number,
-    @Arg("cursor", () => String, { nullable: true }) cursor: string | null
+    @Arg("cursor", () => String, { nullable: true }) cursor: string | null,
+    @Ctx() { req }: MyContext
   ): Promise<PaginatedPosts> {
     const realLimit = Math.min(50, limit);
     const realLimitPlusOne = realLimit + 1;
@@ -57,8 +58,16 @@ export class PostResolver {
     //! query parameters array
     const replacement: any[] = [realLimitPlusOne];
 
+    //! add the values to replacement array by conditionally
+    if (req.session.userId) {
+      replacement.push(req.session.userId);
+    }
+
+    let cursorIdx = 3;
     if (cursor) {
       replacement.push(new Date(parseInt(cursor)));
+
+      cursorIdx = replacement.length;
     }
 
     //! create a join query
@@ -66,19 +75,24 @@ export class PostResolver {
       //! make attention on json_build_object method
       //! this will form this result as expected return type
       `
-    SELECT p.*,
-    json_build_object(
-    'id', u.id,
-    'username', u.username,
-    'email', u.email,
-    'createdAt', u."createdAt",
-    'updatedAt', u."updatedAt"
-    ) creator
-    FROM post p
-    INNER JOIN public.user u on u.id = p."creatorId"
-    ${cursor ? ` WHERE  p."createdAt" < $2` : ""}
-    ORDER BY p."createdAt" DESC
-    LIMIT $1
+      SELECT p.*,
+      json_build_object(
+        'id', u.id,
+        'username', u.username,
+        'email', u.email,
+        'createdAt', u."createdAt",
+        'updatedAt', u."updatedAt"
+      ) creator,
+      ${
+        req.session.userId
+          ? '(SELECT value FROM upvote WHERE "userId" = $2 AND "postId" = p.id) "voteStatus"'
+          : 'null AS "voteStatus"'
+      }
+      FROM post p
+      INNER JOIN public.user u ON u.id = p."creatorId"
+      ${cursor ? ` WHERE  p."createdAt" < $${cursorIdx}` : ""}
+      ORDER BY p."createdAt" DESC
+      LIMIT $1
   `,
       replacement
     );
