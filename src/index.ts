@@ -17,6 +17,7 @@ import { MyContext } from "./types";
 import { createConnection } from "typeorm";
 import { Post, UpVote, User } from "./entities";
 import path from "path";
+import { createUserLoader } from "./utils/createUserLoader";
 
 const main = async () => {
   //! Initialize type-orm and connect to db.
@@ -69,6 +70,7 @@ const main = async () => {
       req,
       res,
       redis: redisClient,
+      userLoader: createUserLoader()
     }),
     plugins: [
       ApolloServerPluginDrainHttpServer({ httpServer }),
