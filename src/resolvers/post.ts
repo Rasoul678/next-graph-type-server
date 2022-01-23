@@ -50,12 +50,28 @@ export class PostResolver {
     return userLoader.load(post.creatorId);
   }
 
+  @FieldResolver(() => Int, { nullable: true })
+  async voteStatus(
+    @Root() post: Post,
+    @Ctx() { upVoteLoader, req }: MyContext
+  ) {
+    if (!req.session.userId) {
+      return null;
+    }
+
+    const upvote = await upVoteLoader.load({
+      postId: post.id,
+      userId: req.session.userId,
+    });
+
+    return upvote?.value;
+  }
+
   //! Get all posts.
   @Query(() => PaginatedPosts)
   async posts(
     @Arg("limit", () => Int) limit: number,
-    @Arg("cursor", () => String, { nullable: true }) cursor: string | null,
-    @Ctx() { req }: MyContext
+    @Arg("cursor", () => String, { nullable: true }) cursor: string | null
   ): Promise<PaginatedPosts> {
     const realLimit = Math.min(50, limit);
     const realLimitPlusOne = realLimit + 1;
@@ -63,16 +79,8 @@ export class PostResolver {
     //! query parameters array
     const replacement: any[] = [realLimitPlusOne];
 
-    //! add the values to replacement array by conditionally
-    if (req.session.userId) {
-      replacement.push(req.session.userId);
-    }
-
-    let cursorIdx = 3;
     if (cursor) {
       replacement.push(new Date(parseInt(cursor)));
-
-      cursorIdx = replacement.length;
     }
 
     //! create a join query
@@ -80,14 +88,9 @@ export class PostResolver {
       //! make attention on json_build_object method
       //! this will form this result as expected return type
       `
-      SELECT p.*,
-      ${
-        req.session.userId
-          ? '(SELECT value FROM upvote WHERE "userId" = $2 AND "postId" = p.id) "voteStatus"'
-          : 'null AS "voteStatus"'
-      }
+      SELECT p.*
       FROM post p
-      ${cursor ? ` WHERE  p."createdAt" < $${cursorIdx}` : ""}
+      ${cursor ? `WHERE  p."createdAt" < $2` : ""}
       ORDER BY p."createdAt" DESC
       LIMIT $1
   `,
