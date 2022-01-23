@@ -15,7 +15,7 @@ import {
   UseMiddleware,
 } from "type-graphql";
 import { getConnection } from "typeorm";
-import { UpVote, Post } from "../entities";
+import { Post } from "../entities";
 
 @InputType()
 class PostInput {
@@ -146,19 +146,7 @@ export class PostResolver {
     @Ctx() { req }: MyContext
   ): Promise<boolean> {
     try {
-      const post = await Post.findOne(id);
-
-      //! Post not found.
-      if (!post) {
-        return false;
-      }
-
-      if (post.creatorId !== req.session.userId) {
-        throw new Error("not authorized");
-      }
-      
-      await UpVote.delete({ postId: id });
-      await Post.delete(id);
+      await Post.delete({ id, creatorId: req.session.userId });
 
       return true;
     } catch (error) {

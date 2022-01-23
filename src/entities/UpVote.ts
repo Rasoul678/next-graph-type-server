@@ -5,7 +5,7 @@ import { Post, User } from ".";
 //! With type-graphql, we can turn classes into graphql types.
 
 @ObjectType()
-@Entity('upvote')
+@Entity("upvote")
 export class UpVote extends BaseEntity {
   @Field()
   @Column({ type: "int" })
@@ -24,6 +24,8 @@ export class UpVote extends BaseEntity {
   postId: number;
 
   @Field(() => Post)
-  @ManyToOne(() => Post, (post) => post.upvotes)
+  @ManyToOne(() => Post, (post) => post.upvotes, {
+    onDelete: "CASCADE",
+  })
   post: Post;
 }
