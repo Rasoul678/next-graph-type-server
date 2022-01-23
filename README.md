@@ -108,4 +108,5 @@
 - put `register validation` in separate file
 - add `uuid` to create token for forget password email
 - add `pagination`
-- add `upVote` relationship(`many to many`) 
+- add `upVote` relationship(`many to many`)
+- add safety to post deletion by adding `isAuth` middleware and make sure that user is able to only delete its own post. 

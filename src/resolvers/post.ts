@@ -14,8 +14,8 @@ import {
   Root,
   UseMiddleware,
 } from "type-graphql";
-import { Post } from "../entities/Post";
 import { getConnection } from "typeorm";
+import { UpVote, Post } from "../entities";
 
 @InputType()
 class PostInput {
@@ -106,7 +106,7 @@ export class PostResolver {
   //! Get post by id.
   @Query(() => Post, { nullable: true })
   post(@Arg("id", () => Int) id: number): Promise<Post | undefined> {
-    return Post.findOne(id);
+    return Post.findOne(id, { relations: ["creator"] });
   }
 
   //! Create a post.
@@ -140,9 +140,26 @@ export class PostResolver {
 
   //! Delete a post.
   @Mutation(() => Boolean)
-  async deletePost(@Arg("id", () => Int) id: number): Promise<boolean> {
+  @UseMiddleware(isAuth)
+  async deletePost(
+    @Arg("id", () => Int) id: number,
+    @Ctx() { req }: MyContext
+  ): Promise<boolean> {
     try {
+      const post = await Post.findOne(id);
+
+      //! Post not found.
+      if (!post) {
+        return false;
+      }
+
+      if (post.creatorId !== req.session.userId) {
+        throw new Error("not authorized");
+      }
+      
+      await UpVote.delete({ postId: id });
       await Post.delete(id);
+
       return true;
     } catch (error) {
       return false;
